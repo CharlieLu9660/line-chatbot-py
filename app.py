@@ -18,6 +18,7 @@ handler = WebhookHandler('69d38844aa27354801e12218dcdfef6f')
 # 監聽所有來自 /callback 的 Post Request
 @app.route("/callback", methods=['POST'])
 def callback():
+
     # get X-Line-Signature header value
     signature = request.headers['X-Line-Signature']
     # get request body as text
@@ -28,6 +29,35 @@ def callback():
         handler.handle(body, signature)
     except InvalidSignatureError:
         abort(400)
+    # Get the message text from the user.
+    get_message = event.message.text
+
+    # Check if the message starts with "!t"
+    import googletrans
+    if get_message[:2].lower() == '!t':
+        # Create a Google Translate translator object.
+        translator = googletrans.Translator()
+
+        # Get the text to be translated from the user.
+        text = get_message[3:]
+
+        # If the user types "!t ?", send a list of all supported languages.
+        if text == '?':
+            trans = str(googletrans.LANGCODES)[1:-1].replace(', ', '\n')
+
+        # If the user specifies a target language, translate the text to that language.
+        elif split[1] in googletrans.LANGCODES.values() and len(split) != 2:
+            text = get_message[6:]
+            trans = translator.translate(text, dest=split[1]).text
+
+        # Otherwise, translate the text to Chinese (Taiwan).
+        else:
+            trans = translator.translate(text, dest='zh-tw').text
+
+        # Send the translated text back to the user.
+        reply = TextSendMessage(text=trans)
+        line_bot_api.reply_message(event.reply_token, reply)
+
     return 'OK'
 
 # 處理訊息
